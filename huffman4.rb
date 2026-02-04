@@ -2,7 +2,7 @@ def build_tree(chars)
     a = chars.uniq.map {|c| {char: c, count: chars.count(c)}}.sort {|a, b| [b[:count], a[:char]] <=> [a[:count], b[:char]]}
     pq = a.map { |c| {char: c[:char], count: c[:count], left: nil, right: nil} }
 
-    while pq.size > 1 do
+    while pq.size > 1
         left, right = pq.pop(2)
 
         if left[:count] < right[:count]
@@ -22,7 +22,7 @@ def build_table(tree)
 
     codes = {}
 
-    while q.size > 0 do
+    while q.size > 0
         e = q.shift
 
         if e[:node][:left].nil? && e[:node][:right].nil?
@@ -74,12 +74,12 @@ def running_codes_lengths(codes)
             while run_length > 0
                 if run_length >= 11
                     # code 18, repeat '0' 11..138 times
-                    diff = [138, [11, run_length].max].min
+                    diff = [138, run_length].min
                     result << [18, diff - 11]
                     run_length -= diff
                 elsif run_length >= 3
                     # code 17, repeat '0' 3..10 times
-                    diff = [10, [3, run_length].max].min
+                    diff = [10, run_length].min
                     result << [17, diff - 3]
                     run_length -= diff
                 else
@@ -93,26 +93,20 @@ def running_codes_lengths(codes)
 
             while run_length >= 3
                 # code 16, repeat previous value 3..6 times
-                diff = [run_length, 6].min
+                diff = [6, run_length].min
                 result << [16, diff - 3]
                 run_length -= diff
             end
-
-            # Add any remaining values (< 3) individually
-            run_length.times { result << len }
-        else
-            run_length.times { result << len }
-            run_length = 0
         end
+
+        run_length.times { result << len }
     end
 
     result
 end
 
 def encode(s)
-    # Work with bytes, not characters (to handle UTF-8 properly)
-    bytes = s.bytes
-    tree = build_tree(bytes)
+    tree = build_tree(s.bytes)
     codes = build_table(tree)
     canonical_codes = build_canonical_table(codes)
 
@@ -123,8 +117,7 @@ def encode(s)
     codes_lengths_codes = build_table(codes_lengths_tree)
     canonical_codes_lengths = build_canonical_table(codes_lengths_codes)
 
-    # Encode body and pad to byte boundary
-    body_bits = bytes.map {|b| canonical_codes[b]}.join
+    body_bits = s.bytes.map {|c| canonical_codes[c]}.join
     padded_body_bits = body_bits.ljust((body_bits.length + 7) / 8 * 8, '0')
     encoded_body = padded_body_bits.chars.each_slice(8).map {|slice| slice.join.to_i(2).chr}.join
     encoded_codes_lengths = codes_lengths.map do |c|
@@ -145,71 +138,45 @@ def encode(s)
     padded_bit_string = bit_string.ljust((bit_string.length + 7) / 8 * 8, '0')  # Pad to multiple of 8
     encoded_codes_lengths_tree = padded_bit_string.chars.each_slice(8).map {|slice| slice.join.to_i(2).chr}.join
 
-    # Pad encoded_codes_lengths to multiple of 8 bits before converting to bytes
     padded_encoded_codes_lengths = encoded_codes_lengths.ljust((encoded_codes_lengths.length + 7) / 8 * 8, '0')
     encoded_codes_lengths_body = padded_encoded_codes_lengths.chars.each_slice(8).map {|slice| slice.join.to_i(2).chr}.join
 
-    puts ">> canonical codes: #{canonical_codes.inspect}\n\n"
-    puts ">> codes_lengths: #{codes_lengths.inspect}\n\n"
-    puts ">> raw codes_lengths: #{raw_codes_lengths.inspect}\n\n"
-    puts ">> codes_lengths_tree: #{codes_lengths_tree.inspect}\n\n"
-    puts ">> codes_lengths_codes: #{codes_lengths_codes.inspect}\n\n"
-    puts ">> canonical code lengths: #{canonical_codes_lengths.inspect}\n\n"
-    puts ">> encoded codes_lengths: #{encoded_codes_lengths.inspect}\n\n"
-    puts ">> encoded codes_lengths_tree: #{encoded_codes_lengths_tree.inspect}\n\n"
-    puts ">> encoded codes_lengths_body: #{encoded_codes_lengths_body}\n\n"
-    puts ">> encoded body: #{encoded_body.inspect}\n\n"
+    # puts ">> canonical codes: #{canonical_codes.inspect}\n\n"
+    # puts ">> codes_lengths: #{codes_lengths.inspect}\n\n"
+    # puts ">> raw codes_lengths: #{raw_codes_lengths.inspect}\n\n"
+    # puts ">> codes_lengths_tree: #{codes_lengths_tree.inspect}\n\n"
+    # puts ">> codes_lengths_codes: #{codes_lengths_codes.inspect}\n\n"
+    # puts ">> canonical code lengths: #{canonical_codes_lengths.inspect}\n\n"
+    # puts ">> encoded codes_lengths: #{encoded_codes_lengths.inspect}\n\n"
+    # puts ">> encoded codes_lengths_tree: #{encoded_codes_lengths_tree.inspect}\n\n"
+    # puts ">> encoded codes_lengths_body: #{encoded_codes_lengths_body}\n\n"
+    # puts ">> encoded body: #{encoded_body.inspect}\n\n"
 
     {
         header1: encoded_codes_lengths_tree,
         header2: encoded_codes_lengths_body,
-        body: encoded_body,
-        length: bytes.length,  # Store original byte count to know when to stop decoding
+        body: encoded_body
     }
 end
 
-def lengths_to_counts(lengths)
-  # Convert array of lengths [0, 2, 2, 0, ..., 1] to array of counts [0, 0, 2, 0, ...]
-  # where counts[i] = number of symbols with length i+1
-  max_length = lengths.max || 0
-  counts = Array.new(max_length, 0)
-  lengths.each do |length|
-    counts[length - 1] += 1 if length > 0
-  end
-  counts
-end
-
 def recreate_huffman_codes(code_lengths)
-  # code_lengths is an array where code_lengths[symbol] = length
-  # We need to create canonical codes for each symbol with non-zero length
+    symbols_with_lengths = code_lengths.each_with_index.filter {|len, _| len > 0}.map {|len, s| [s, len] }.sort_by {|s, len| [len, s]}
 
-  # Create array of [symbol, length] pairs for non-zero lengths
-  symbols_with_lengths = []
-  code_lengths.each_with_index do |length, symbol|
-    symbols_with_lengths << [symbol, length] if length && length > 0
-  end
+    res = Array.new(code_lengths.size)
+    prev_length = 0
+    code = 0
 
-  # Sort by [length, symbol] to match canonical Huffman code assignment
-  symbols_with_lengths.sort_by! { |symbol, length| [length, symbol] }
+    symbols_with_lengths.each do |s, len|
+        code <<= (len - prev_length)
+        res[s] = code.to_s(2).rjust(len, '0')
+        code += 1
+        prev_length = len
+    end
 
-  # Assign canonical codes
-  # Create sparse array with same size as input
-  res = Array.new(code_lengths.size)
-  code = 0
-  prev_length = 0
-
-  symbols_with_lengths.each do |symbol, length|
-    code <<= (length - prev_length)
-    res[symbol] = code.to_s(2).rjust(length, '0')
-    puts ">> symbol #{symbol} gets code #{res[symbol]}"
-    code += 1
-    prev_length = length
-  end
-
-  res
+    res
 end
 
-def decode_code_lengths_tree(header)
+def decode_code_lengths_lengths(header)
     bits = header.bytes.map {|ch| ch.to_s(2).rjust(8, '0')}.join
 
     code_lengths = []
@@ -224,129 +191,115 @@ def decode_code_lengths_tree(header)
     code_lengths
 end
 
-def decode_running_lengths(items)
+def decode_running_lengths(compressed_code_lengths)
     res = []
 
-    items.each do |item|
-        if item.is_a?(Array)
-            code, extra = item
+    compressed_code_lengths.each do |e|
+        if e.is_a?(Array)
+            code, extras = e
+
             case code
             when 16
-                repeats = 3 + extra
+                repeats = 3 + extras
                 repeats.times { res << res.last }
+
             when 17
-                repeats = 3 + extra
+                repeats = 3 + extras
                 repeats.times { res << 0 }
+
             when 18
-                repeats = 11 + extra
+                repeats = 11 + extras
                 repeats.times { res << 0 }
             end
         else
-            res << item
+            res << e
         end
     end
 
-    # Pad to 256 elements (for all possible byte values)
-    while res.length < 256
-        res << 0
-    end
+    res << 0 while res.length < 256
 
     res
 end
 
-def decode_codes_lengths(header, codes_lengths_tree)
-    bits = header.bytes.map {|b| b.to_s(2).rjust(8, '0')}.join
-
-    # Build reverse lookup: code => symbol
-    tree_inv = {}
-    codes_lengths_tree.each_with_index do |code, symbol|
-        tree_inv[code] = symbol if code.is_a?(String) && !code.empty?
-    end
+def decode_compressed_code_lengths(bits, codes_lengths_tree)
+    tree_inv = codes_lengths_tree.each_with_index.to_h
 
     compressed_code_lengths = []
     bit_pos = 0
-    buf = ""
-    decoded_count = 0  # Track how many code lengths we've decoded
+    buf = ''
+    decoded_count = 0
 
-    # Decode symbols and read extra bits for RLE codes
-    # Stop when we've decoded enough to produce 256 code lengths
     while bit_pos < bits.length && decoded_count < 256
         buf += bits[bit_pos]
         bit_pos += 1
 
         if tree_inv.key?(buf)
             symbol = tree_inv[buf]
-            buf = ""
+            buf = ''
 
-            # Read extra bits for RLE codes and update decoded_count
             case symbol
             when 16
                 extra_bits = bits[bit_pos, 2].to_i(2)
                 bit_pos += 2
                 compressed_code_lengths << [16, extra_bits]
-                decoded_count += 3 + extra_bits  # Code 16 repeats 3-6 times
+                decoded_count += 3 + extra_bits # code 16 repeats 3-6 repetitions
             when 17
                 extra_bits = bits[bit_pos, 3].to_i(2)
                 bit_pos += 3
                 compressed_code_lengths << [17, extra_bits]
-                decoded_count += 3 + extra_bits  # Code 17 repeats 3-10 times
+                decoded_count += 3 + extra_bits # code 17 repeats 3-10 repetitions
             when 18
                 extra_bits = bits[bit_pos, 7].to_i(2)
                 bit_pos += 7
                 compressed_code_lengths << [18, extra_bits]
-                decoded_count += 11 + extra_bits  # Code 18 repeats 11-138 times
+                decoded_count += 11 + extra_bits # code 18 repeats 11-138 repetitions
             else
                 compressed_code_lengths << symbol
-                decoded_count += 1  # Regular symbol adds 1 code length
+                decoded_count += 1 # any other code adds 1 instance of itself
             end
         end
     end
 
-    puts " ###### codes_lengths_tree: #{codes_lengths_tree.inspect}\n\n\n\n\n"
-    puts " ====== compressed code lengths: #{compressed_code_lengths.inspect}\n\n\n\n\n\n"
+    compressed_code_lengths
+end
+
+def decode_codes_lengths(header, codes_lengths_tree)
+    bits = header.bytes.map {|b| b.to_s(2).rjust(8, '0')}.join
+    compressed_code_lengths = decode_compressed_code_lengths(bits, codes_lengths_tree)
     decode_running_lengths(compressed_code_lengths)
 end
 
-def decode_body(body, codes_lengths, length = nil)
+def decode_body(body, codes_lengths)
     bits = body.bytes.map {|b| b.to_s(2).rjust(8, '0')}.join
-    bytes = decode_with_tree(bits, codes_lengths, length)
-    # Pack bytes and force UTF-8 encoding
+    bytes = decode_with_tree(bits, codes_lengths)
     bytes.pack('C*').force_encoding('UTF-8')
 end
 
-def decode_with_tree(bits, tree, max_symbols = nil)
-    # Build hash: code => symbol, filtering out nil and empty entries
-    tree_inv = {}
-    tree.each_with_index do |code, symbol|
-        tree_inv[code] = symbol if code.is_a?(String) && !code.empty?
-    end
+def decode_with_tree(bits, tree)
+    tree_inv = tree.each_with_index.to_h
 
     res = []
-    buf = ""
+    buf = ''
 
     bits.each_char do |bit|
         buf += bit
 
         if tree_inv.key? buf
             res << tree_inv[buf]
-            buf = ""
-
-            # Stop if we've decoded enough symbols
-            break if max_symbols && res.length >= max_symbols
+            buf = ''
         end
     end
 
     res
 end
 
-def decode(header1, header2, body, length = nil)
-    code_lengths_tree = decode_code_lengths_tree(header1)
-    codes_lengths_tree = recreate_huffman_codes(code_lengths_tree)
-    codes_lengths = decode_codes_lengths(header2, codes_lengths_tree)
+def decode(header1, header2, body)
+    code_lengths_lengths = decode_code_lengths_lengths(header1)
+    tree = recreate_huffman_codes(code_lengths_lengths)
+    codes_lengths = decode_codes_lengths(header2, tree)
 
-    puts " >>>>> codes_lengths: #{codes_lengths.inspect}\n\n\n\n"
     codes = recreate_huffman_codes(codes_lengths)
-    decode_body(body, codes, length)
+    decode_body(body, codes)
 end
 
 s = <<-EOL
@@ -419,11 +372,8 @@ To get these running, you generally don't need to be a DevOps expert. Use one of
 > You will often see tags like **Q4_K_M** or **Q8_0**. This refers to how much the model has been compressed. For coding, try to stay at **Q4** or higher; anything lower (like Q2) tends to lose the "logic" required for syntax-perfect code.
 EOL
 
-# tree = build_tree(s.chars.map &:ord)
-# codes = build_canonical_table(build_table(tree))
-# code_lengths = running_codes_lengths(codes)
 encoded = encode(s)
-decoded = decode(encoded[:header1], encoded[:header2], encoded[:body], encoded[:length])
+decoded = decode(encoded[:header1], encoded[:header2], encoded[:body])
 
 # puts "Codes: #{codes.inspect}\n\n"
 # puts "Code lengths: #{code_lengths.inspect}\n\n"
@@ -442,8 +392,3 @@ puts ">> header1 length: #{encoded[:header1].length}"
 puts ">> header2 length: #{encoded[:header2].length}"
 puts "Compression rate: #{(((s.length / (encoded[:body].length + encoded[:header1].length + encoded[:header2].length).to_f) - 1.0) * 100).to_i}%"
 
-# decoded = decode(encoded, tree)
-# puts "Decoded: #{decoded}"
-
-# bin 10111000101001001110001101011111
-# enc 10111000101001001110001101011111
