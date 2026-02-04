@@ -216,8 +216,6 @@ def decode_running_lengths(compressed_code_lengths)
         end
     end
 
-    res << 0 while res.length < 256
-
     res
 end
 
@@ -265,8 +263,56 @@ end
 
 def decode_codes_lengths(header, codes_lengths_tree)
     bits = header.bytes.map {|b| b.to_s(2).rjust(8, '0')}.join
-    compressed_code_lengths = decode_compressed_code_lengths(bits, codes_lengths_tree)
-    decode_running_lengths(compressed_code_lengths)
+    # compressed_code_lengths = decode_compressed_code_lengths(bits, codes_lengths_tree)
+    # decode_running_lengths(compressed_code_lengths)
+
+    tree_inv = codes_lengths_tree.each_with_index.to_h
+
+    # compressed_code_lengths = []
+    bit_pos = 0
+    buf = ''
+
+    res = []
+
+    while bit_pos < bits.length && res.size < 256
+        buf += bits[bit_pos]
+        bit_pos += 1
+
+        if tree_inv.key?(buf)
+            symbol = tree_inv[buf]
+            buf = ''
+
+            case symbol
+            when 16
+                extra_bits = bits[bit_pos, 2].to_i(2)
+                bit_pos += 2
+                repeats = 3 + extra_bits
+                repeats.times { res << res.last }
+                # compressed_code_lengths << [16, extra_bits]
+                # decoded_count += 3 + extra_bits # code 16 repeats 3-6 repetitions
+            when 17
+                extra_bits = bits[bit_pos, 3].to_i(2)
+                bit_pos += 3
+                repeats = 3 + extra_bits
+                repeats.times { res << 0 }
+                # compressed_code_lengths << [17, extra_bits]
+                # decoded_count += 3 + extra_bits # code 17 repeats 3-10 repetitions
+            when 18
+                extra_bits = bits[bit_pos, 7].to_i(2)
+                bit_pos += 7
+                repeats = 11 + extra_bits
+                repeats.times { res << 0 }
+                # compressed_code_lengths << [18, extra_bits]
+                # decoded_count += 11 + extra_bits # code 18 repeats 11-138 repetitions
+            else
+                # compressed_code_lengths << symbol
+                # decoded_count += 1 # any other code adds 1 instance of itself
+                res << symbol
+            end
+        end
+    end
+
+    res
 end
 
 def decode_body(body, codes_lengths)
