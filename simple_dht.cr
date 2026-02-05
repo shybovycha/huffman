@@ -155,8 +155,11 @@ class SimpleDHT
     end
 end
 
-if ARGV[0] == "encode"
-    STDOUT.print SimpleDHT.new.encode(STDIN.gets_to_end)
-elsif ARGV[0] == "decode"
-    STDOUT.print SimpleDHT.new.decode(STDIN.gets_to_end)
+if ARGV.size != 1 || (ARGV[0] != "encode" && ARGV[0] != "decode")
+  STDERR.puts "Usage: #{PROGRAM_NAME} encode|decode < input > output"
+  exit 1
 end
+
+input = STDIN.gets_to_end
+output = ARGV[0] == "encode" ? SimpleDHT.new.encode(input) : SimpleDHT.new.decode(input)
+STDOUT.print(output)
