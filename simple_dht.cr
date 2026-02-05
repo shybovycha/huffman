@@ -155,8 +155,10 @@ class SimpleDHT
     end
 end
 
-enc = SimpleDHT.new.encode("hello world")
-puts "Encoded: #{enc}"
-
-dec = SimpleDHT.new.decode(enc)
-puts "Decoded: #{dec}"
+if __FILE__ == PROGRAM_NAME
+    if ARGV[0] == "encode"
+        puts SimpleDHT.new.encode(STDIN.gets_to_end)
+    elsif ARGV[0] == "decode"
+        puts SimpleDHT.new.decode(STDIN.gets_to_end)
+    end
+end

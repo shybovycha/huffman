@@ -139,3 +139,11 @@ class SimpleDHT
     end
   end
 end
+
+if __FILE__ == $PROGRAM_NAME
+    if ARGV[0] == 'encode'
+      puts SimpleDHT.encode(STDIN.read)
+    elsif ARGV[0] == 'decode'
+      puts SimpleDHT.decode(STDIN.read)
+    end
+end
