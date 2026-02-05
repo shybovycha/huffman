@@ -140,10 +140,8 @@ class SimpleDHT
   end
 end
 
-if __FILE__ == $PROGRAM_NAME
-    if ARGV[0] == 'encode'
-      puts SimpleDHT.encode(STDIN.read)
-    elsif ARGV[0] == 'decode'
-      puts SimpleDHT.decode(STDIN.read)
-    end
+if ARGV[0] == 'encode'
+  STDOUT.print SimpleDHT.encode(STDIN.read)
+elsif ARGV[0] == 'decode'
+  STDOUT.print SimpleDHT.decode(STDIN.read)
 end

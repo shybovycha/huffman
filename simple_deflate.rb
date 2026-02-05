@@ -283,10 +283,8 @@ class SimpleDeflate
   end
 end
 
-if __FILE__ == $PROGRAM_NAME
-    if ARGV[0] == 'encode'
-      puts SimpleDeflate.encode(STDIN.read)
-    elsif ARGV[0] == 'decode'
-      puts SimpleDeflate.decode(STDIN.read)
-    end
+if ARGV[0] == 'encode'
+  STDOUT.print SimpleDeflate.encode(STDIN.read)
+elsif ARGV[0] == 'decode'
+  STDOUT.print SimpleDeflate.decode(STDIN.read)
 end
