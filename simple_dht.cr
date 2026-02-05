@@ -155,10 +155,8 @@ class SimpleDHT
     end
 end
 
-if __FILE__ == PROGRAM_NAME
-    if ARGV[0] == "encode"
-        puts SimpleDHT.new.encode(STDIN.gets_to_end)
-    elsif ARGV[0] == "decode"
-        puts SimpleDHT.new.decode(STDIN.gets_to_end)
-    end
+if ARGV[0] == "encode"
+    STDOUT.print SimpleDHT.new.encode(STDIN.gets_to_end)
+elsif ARGV[0] == "decode"
+    STDOUT.print SimpleDHT.new.decode(STDIN.gets_to_end)
 end
