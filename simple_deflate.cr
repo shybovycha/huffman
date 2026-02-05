@@ -29,7 +29,8 @@ class SimpleDeflate
     pq = chars_with_counts.map {|c| TreeNode.new(c[:char], c[:count], nil, nil)}
 
     while pq.size > 1
-      left, right = pq.pop(2)
+      right = pq.pop
+      left = pq.pop
 
       if left.count < right.count
         left, right = right, left
@@ -39,7 +40,7 @@ class SimpleDeflate
       pq.sort! {|a, b| [b.count, a.char || 0] <=> [a.count, b.char || 0]}
     end
 
-    pq[0]
+    pq.first
   end
 
   private def build_table(tree : TreeNode) : Hash(UInt8, String)
