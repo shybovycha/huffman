@@ -4,7 +4,7 @@ This repo contains a few samples of how [Huffman encoding](https://en.wikipedia.
 
 **NOTE:** the implementations are trivial and are meant more as an example rather than a real-world full-scale ZIP implementation.
 
-Full description of how these work and how the algorithms are implemented could be found in [this blog]().
+Full description of how these work and how the algorithms are implemented could be found in [this blog](https://shybovycha.github.io/2025/12/01/data-compression.html).
 
 ## DEFLATE
 

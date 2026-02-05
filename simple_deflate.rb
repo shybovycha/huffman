@@ -1,11 +1,12 @@
 class SimpleDeflate
   class << self
-    def encode(s)
-      encode_impl(s)
+    def encode(message)
+      encoded = encode_impl(message)
+      [encoded[:length]].pack('N') + [ :header1, :header2, :body ].map { |k| encoded[k] }.join
     end
 
-    def decode(header1, header2, body, length)
-      decode_impl(header1, header2, body, length)
+    def decode(message)
+      decode_impl(message)
     end
 
     private
@@ -194,7 +195,7 @@ class SimpleDeflate
         code_lengths
     end
 
-    def decode_codes_lengths(header, codes_lengths_tree)
+    def decode_codes_lengths_with_position(header, codes_lengths_tree)
         bits = header.bytes.map {|b| b.to_s(2).rjust(8, '0')}.join
 
         tree_inv = codes_lengths_tree.each_with_index.to_h
@@ -234,7 +235,7 @@ class SimpleDeflate
             end
         end
 
-        res
+        [ res, bit_pos ]
     end
 
     def decode_body(body, codes_lengths, length)
@@ -263,13 +264,21 @@ class SimpleDeflate
         res
     end
 
-    def decode_impl(header1, header2, body, length)
-        code_lengths_lengths = decode_code_lengths_lengths(header1)
-        tree = recreate_huffman_codes(code_lengths_lengths)
-        codes_lengths = decode_codes_lengths(header2, tree)
+    def decode_impl(message)
+      length = message[0..3].unpack1('N')
+      header1 = message[4..11]
 
-        codes = recreate_huffman_codes(codes_lengths)
-        decode_body(body, codes, length)
+      code_lengths_lengths = decode_code_lengths_lengths(header1)
+      tree = recreate_huffman_codes(code_lengths_lengths)
+
+      header2_start = message[12..]
+      codes_lengths, pos = decode_codes_lengths_with_position(header2_start, tree)
+
+      header2_length = (pos + 7) / 8
+      body = message[(12 + header2_length)..]
+      codes = recreate_huffman_codes(codes_lengths)
+
+      decode_body(body, codes, length)
     end
   end
 end
